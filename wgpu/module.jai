@@ -1,11 +1,8 @@
 #load "native.jai";
-#load "rs.jai";
 #load "helpers.jai";
 
 #scope_module
 
-size_t  :: u64;
-
-#if OS == .WINDOWS  libwgpu :: #library "win/wgpu_native";
-#if OS == .MACOS    libwgpu :: #library "mac/wgpu_native";
-#if OS == .LINUX    libwgpu :: #library "linux/wgpu_native";
+#if OS == .WINDOWS  libwgpu_native :: #library "win/libwgpu";
+#if OS == .MACOS    libwgpu_native :: #library "mac/libwgpu_native";
+#if OS == .LINUX    libwgpu_native :: #library "linux/libwgpu";

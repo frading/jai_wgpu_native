@@ -8,7 +8,7 @@ wgpu :: #import "wgpu";
 WINDOW_WIDTH  :: 1280;
 WINDOW_HEIGHT :: 720;
 
-wgpu_log_callback :: (level: wgpu.LogLevel, msg: *u8) #c_call {
+wgpu_log_callback :: (level: wgpu.LogLevel, msg: *u8, userdata: *void) #c_call {
     print_c("[WGPU :: %]: %\n", level, to_string(msg));
 }
 
@@ -28,7 +28,7 @@ SHADER :: #string WGSL
         @location(0) color: vec3<f32>,
     };
 
-    @stage(vertex)
+    @vertex
     fn vertex(model: VertexInput) -> VertexOutput {
         var out: VertexOutput;
         out.clip_position = vec4<f32>(model.position, 1.0);
@@ -36,7 +36,7 @@ SHADER :: #string WGSL
         return out;
     }
 
-    @stage(fragment)
+    @fragment
     fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(in.color, 1.0);
     }
@@ -54,22 +54,22 @@ main :: () {
     window := SDL_CreateWindow("Jai WGPU", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_ALLOW_HIGHDPI);
     assert(window != null, "Could not create window: %\n", to_string(SDL_GetError()));
 
-    wgpu.SetLogCallback(wgpu_log_callback);
+    wgpu.SetLogCallback(wgpu_log_callback, null);
 	wgpu.SetLogLevel(.Error);
 
-    surface := create_surface(window);
+    instance_desc: wgpu.InstanceDescriptor;
+    instance := wgpu.CreateInstance(*instance_desc);
+    assert(instance != null, "Instance is not created correctly");
+
+    surface := create_surface(instance, window);
     assert(surface != null, "Surface is not created correctly");
 
-    adapter := request_adapter(surface, powerPreference = .HighPerformance);
+    adapter := request_adapter(instance, surface, powerPreference = .HighPerformance);
     assert(adapter != null, "Adapter is not created correctly");
 
     device := request_device(adapter);
     assert(device != null, "Device is not created correctly");
 
-    wgpu.DeviceSetDeviceLostCallback(device, (reason: wgpu.DeviceLostReason, msg: *u8, user_data: *void) #c_call {
-        print_c("Device Lost: %s\n", to_string(msg));
-    }, null);
-    
     wgpu.DeviceSetUncapturedErrorCallback(device, (type: wgpu.ErrorType, msg: *u8, user_data: *void) #c_call {
         print_c("Uncaptured Error (%d): %s\n", type, to_string(msg));
     }, null);
@@ -124,7 +124,7 @@ main :: () {
 
         wgpu.RenderPassEncoderDraw(render_pass, VERTICES.count, 1, 0, 0);
 		wgpu.RenderPassEncoderEnd(render_pass);
-        wgpu.TextureViewDrop(current_view);
+        wgpu.TextureViewRelease(current_view);
 
 		cmd_buffer := wgpu.CommandEncoderFinish(cmd_encoder, *wgpu.CommandBufferDescriptor.{label = "Main Command Buffer"});
 

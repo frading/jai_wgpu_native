@@ -5,7 +5,7 @@ print_c :: (format: string, args: ..Any, to_standard_error := false) #expand {
     }
 } @PrintLike
 
-request_adapter :: (surface: wgpu.Surface, powerPreference: wgpu.PowerPreference, forceFallbackAdapter := false) -> wgpu.Adapter {
+request_adapter :: (instance: wgpu.Instance, surface: wgpu.Surface, powerPreference: wgpu.PowerPreference, forceFallbackAdapter := false) -> wgpu.Adapter {
     adapter: wgpu.Adapter;
 
     request_adapter_options := wgpu.RequestAdapterOptions.{
@@ -14,7 +14,7 @@ request_adapter :: (surface: wgpu.Surface, powerPreference: wgpu.PowerPreference
         forceFallbackAdapter = forceFallbackAdapter,
     };
 
-    wgpu.InstanceRequestAdapter(null, *request_adapter_options, (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message: *u8, user_data: *void) #c_call {
+    wgpu.InstanceRequestAdapter(instance, *request_adapter_options, (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message: *u8, user_data: *void) #c_call {
         if status != .Success {
             print_c("%\n", message);
             return;
@@ -26,7 +26,7 @@ request_adapter :: (surface: wgpu.Surface, powerPreference: wgpu.PowerPreference
     return adapter;
 }
 
-create_surface :: (window: *SDL_Window, label := "Main Surface") -> wgpu.Surface {
+create_surface :: (instance: wgpu.Instance, window: *SDL_Window, label := "Main Surface") -> wgpu.Surface {
     surface_desc: wgpu.SurfaceDescriptor;
     surface_desc.label = to_c_string(label);
 
@@ -54,26 +54,22 @@ create_surface :: (window: *SDL_Window, label := "Main Surface") -> wgpu.Surface
 
     #if OS == .LINUX  #assert false "LINUX IS NOT SUPPORTED RIGHT NOW.";
 
-    surface := wgpu.InstanceCreateSurface(null, *surface_desc);
+    surface := wgpu.InstanceCreateSurface(instance, *surface_desc);
 
     return surface;
 }
 
-request_device :: (adapter: wgpu.Adapter, required_features := wgpu.FeatureName.[], required_limits := wgpu.Limits.{}) -> wgpu.Device {
-    device: wgpu.Device;
-    
+request_device :: (adapter: wgpu.Adapter) -> wgpu.Device {
     device_descriptor: wgpu.DeviceDescriptor;
-    device_descriptor.requiredFeaturesCount = xx required_features.count;
-    device_descriptor.requiredFeatures = xx required_features.data;
-    device_descriptor.requiredLimits = xx *wgpu.RequiredLimits.{ limits = required_limits };
+    device: wgpu.Device;
 
     wgpu.AdapterRequestDevice(adapter, *device_descriptor, (status: wgpu.RequestDeviceStatus, device: wgpu.Device, message: *u8, user_data: *void) #c_call {
         if status != .Success {
-            print_c("Status: %, Device: %, Message: %", status, device, message);
+            print_c("Status: %, Device: %, Message: %", status, device, to_string(message));
             return;
         } 
 
-        << cast(*wgpu.Device) user_data = device;
+        (cast(*wgpu.Device) user_data).* = device;
     }, *device);
     assert(device != null, "GPU Device is not created correctly");
 
@@ -208,7 +204,7 @@ create_swapchain :: (surface: wgpu.Surface, adapter: wgpu.Adapter, device: wgpu.
 
     descriptor: wgpu.SwapChainDescriptor;
     descriptor.label = "Default Swapchain";
-    descriptor.usage = wgpu.TextureUsage.RenderAttachment;
+    descriptor.usage = xx wgpu.TextureUsage.RenderAttachment;
     descriptor.format = preferred_texture_format;
     descriptor.width = xx width;
     descriptor.height = xx height;
@@ -221,7 +217,7 @@ vertex_array_to_buffer :: (device: wgpu.Device, queue: wgpu.Queue, vertices: []V
     size := cast(u64) vertices.count * size_of(Vertex);
 
     buffer := wgpu.DeviceCreateBuffer(device, *wgpu.BufferDescriptor.{
-        usage = wgpu.BufferUsage.Vertex | wgpu.BufferUsage.CopyDst,
+        usage = xx (wgpu.BufferUsage.Vertex | wgpu.BufferUsage.CopyDst),
         size=size
     });
     assert(buffer != null, "Buffer is not created correctly");
