@@ -52,7 +52,21 @@ create_surface :: (instance: wgpu.Instance, window: *SDL_Window, label := "Main 
         surface_desc.nextInChain = xx *surface_desc_from_metal_layer;
     }
 
-    #if OS == .LINUX  #assert false "LINUX IS NOT SUPPORTED RIGHT NOW.";
+    #if OS == .LINUX  {
+        //#assert false "LINUX IS NOT SUPPORTED RIGHT NOW.";
+
+        sdl_info: SDL_SysWMinfo;
+        SDL_VERSION(*sdl_info.version);
+        assert(xx SDL_GetWindowWMInfo(window,  *sdl_info), "Cannot get SDL info!\n");
+
+        // @TODO: Wayland
+        surface_desc_from_xlib_window: wgpu.SurfaceDescriptorFromXlibWindow;
+        surface_desc_from_xlib_window.chain.sType = .SurfaceDescriptorFromXlibWindow;
+        surface_desc_from_xlib_window.display = sdl_info.info.x11.display;
+        surface_desc_from_xlib_window.window = xx sdl_info.info.x11.window;
+
+        surface_desc.nextInChain = xx *surface_desc_from_xlib_window;
+    }
 
     surface := wgpu.InstanceCreateSurface(instance, *surface_desc);
 
@@ -180,10 +194,10 @@ create_pipeline :: (surface: wgpu.Surface, adapter: wgpu.Adapter, device: wgpu.D
 
     color_target_state: wgpu.ColorTargetState;
     color_target_state.format = preferred_texture_format;
-    color_target_state.blend = *wgpu.BlendState.{ 
+    color_target_state.blend = *(wgpu.BlendState.{ 
         color = .{ srcFactor = .One, dstFactor = .Zero, operation = .Add },
         alpha = .{ srcFactor = .One, dstFactor = .Zero, operation = .Add },
-    };
+    });
     color_target_state.writeMask = xx wgpu.ColorWriteMask.All;
 
     fragment_state: wgpu.FragmentState;
@@ -197,7 +211,7 @@ create_pipeline :: (surface: wgpu.Surface, adapter: wgpu.Adapter, device: wgpu.D
     pipeline_descriptor.depthStencil = null;
 
     return wgpu.DeviceCreateRenderPipeline(device, *pipeline_descriptor);
-} 
+}
 
 create_swapchain :: (surface: wgpu.Surface, adapter: wgpu.Adapter, device: wgpu.Device, width: int, height: int) -> wgpu.SwapChain {
     preferred_texture_format := wgpu.SurfaceGetPreferredFormat(surface, adapter);
@@ -216,10 +230,10 @@ create_swapchain :: (surface: wgpu.Surface, adapter: wgpu.Adapter, device: wgpu.
 vertex_array_to_buffer :: (device: wgpu.Device, queue: wgpu.Queue, vertices: []Vertex) -> wgpu.Buffer, u64 {
     size := cast(u64) vertices.count * size_of(Vertex);
 
-    buffer := wgpu.DeviceCreateBuffer(device, *wgpu.BufferDescriptor.{
+    buffer := wgpu.DeviceCreateBuffer(device, *(wgpu.BufferDescriptor.{
         usage = xx (wgpu.BufferUsage.Vertex | wgpu.BufferUsage.CopyDst),
         size=size
-    });
+    }));
     assert(buffer != null, "Buffer is not created correctly");
 
     wgpu.QueueWriteBuffer(queue, buffer, 0, vertices.data, size);

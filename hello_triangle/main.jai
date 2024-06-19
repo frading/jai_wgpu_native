@@ -1,3 +1,16 @@
+#if OS == .LINUX  {
+    // in order to import gcc_s, I initially tried:
+    // gcc_s  :: #library,system,link_always "libgcc_s.so.1";
+    // as the symlink from libgcc_s.so did not exist. This worked fine,
+    // but to be cleaner, I created it with:
+    // sudo ln -s /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so
+    // and now we can import with "gcc_s"
+    gcc_s  :: #library,system,link_always "gcc_s";
+    // c  :: #library,system,link_always "libc";
+    // m  :: #library,system,link_always "libm";
+    // dl :: #library,system,link_always "libdl";
+    // pt :: #library,system,link_always "libpthread";
+}
 #import "Basic";
 #import "SDL";
 #import "Math";
@@ -102,7 +115,7 @@ main :: () {
 
 		cmd_encoder := wgpu.DeviceCreateCommandEncoder(
 			device,
-			*wgpu.CommandEncoderDescriptor.{label = "Main Command Encoder"},
+			*(wgpu.CommandEncoderDescriptor.{label = "Main Command Encoder"}),
 		);
 
         colorAttachment := wgpu.RenderPassColorAttachment.{
@@ -126,7 +139,7 @@ main :: () {
 		wgpu.RenderPassEncoderEnd(render_pass);
         wgpu.TextureViewRelease(current_view);
 
-		cmd_buffer := wgpu.CommandEncoderFinish(cmd_encoder, *wgpu.CommandBufferDescriptor.{label = "Main Command Buffer"});
+		cmd_buffer := wgpu.CommandEncoderFinish(cmd_encoder, *(wgpu.CommandBufferDescriptor.{label = "Main Command Buffer"}));
 
 		wgpu.QueueSubmit(queue, 1, *cmd_buffer);
 		wgpu.SwapChainPresent(swapchain);
