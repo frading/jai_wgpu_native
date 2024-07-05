@@ -55,11 +55,16 @@ SHADER :: #string WGSL
     }
 WGSL;
 
-VERTICES :: Vertex.[
+VERTICES := Vertex.[
     .{ position=.{0.0, 0.5, 0.0}, color=.{1.0, 0.0, 0.0} },
     .{ position=.{-0.5, -0.5, 0.0}, color=.{0.0, 1.0, 0.0} },
     .{ position=.{0.5, -0.5, 0.0}, color=.{0.0, 0.0, 1.0} },
 ];
+
+update_vertex_array_to_buffer :: (buffer:wgpu.Buffer, queue: wgpu.Queue, vertices: []Vertex) {
+    size := cast(u64) vertices.count * size_of(Vertex);
+    wgpu.QueueWriteBuffer(queue, buffer, 0, vertices.data, size);
+}
 
 main :: () {
     SDL_Init(SDL_INIT_VIDEO);
@@ -113,15 +118,18 @@ main :: () {
 
         current_view := wgpu.SwapChainGetCurrentTextureView(swapchain);
 
+        VERTICES[0].position.y = sin(SDL_GetTicks() / 1000.0) / 2.0;
+        update_vertex_array_to_buffer(vertex_buffer, queue, VERTICES);
+
 		cmd_encoder := wgpu.DeviceCreateCommandEncoder(
 			device,
 			*(wgpu.CommandEncoderDescriptor.{label = "Main Command Encoder"}),
 		);
 
         colorAttachment := wgpu.RenderPassColorAttachment.{
-                loadOp = wgpu.LoadOp.Clear,
-                storeOp = wgpu.StoreOp.Store,
-                clearValue = wgpu.Color.{0.0, 0.0, 0.0, 1.0},
+            loadOp = wgpu.LoadOp.Clear,
+            storeOp = wgpu.StoreOp.Store,
+            clearValue = wgpu.Color.{0.0, 0.0, 0.0, 1.0},
         };
 
         colorAttachment.view = current_view;
